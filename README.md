@@ -8,4 +8,4 @@ Basically a plugin for both developers and advanced users, while still being fai
 Future plans:
 - Filter and Action hooks for adding CAPTCHA, Math Question and similar anti-spam solutions
 - Improve form validation (maybe use the WordPress'ish in-house jQuery Form plugins)
-
+- Improve custom fields implementation
