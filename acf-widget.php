@@ -445,10 +445,10 @@ class alphaContactFormWidget extends WP_Widget {
 		
 		
 		if(!empty($instance['custom_fields']) && stripos($instance['custom_fields'], ';') !== false) {
-			$arrCustomFields = explode(',', $instance['custom_fields']);
+			$arrCustomFields = explode(';', $instance['custom_fields']);
 			
 			foreach($arrCustomFields as $iCount => $strCustomField) {
-				$strFieldName = (stripos($strCustomField, ':') !== false ? substr(0, stripos($strCustomField, ':')+1) : $strCustomField);	
+				$strFieldName = (stripos($strCustomField, ':') !== false ? substr(0, stripos($strCustomField, ':')+1) : $strCustomField);
 				$template->custom_fields[$iCount] = $strFieldName;
 			}
 		}
@@ -508,7 +508,9 @@ class alphaContactFormWidget extends WP_Widget {
 		
 		
 		//Optionals
+		$custom_fields = $instance['custom_fields']; // forgot this in the last commit :(		
 		$custom_css = $instance['custom_css'];
+	
 	
 		?>
 		<p>
@@ -538,7 +540,7 @@ class alphaContactFormWidget extends WP_Widget {
 		<p>
 			<label for="<?php echo $this->get_field_id('custom_fields'); ?>"><?php _e( 'Custom Fields:' ); ?></label> <textarea class="widefat" name="<?php echo $this->get_field_name('custom_fields'); ?>" id="<?php echo $this->get_field_id('custom_fields'); ?>"><?php echo $custom_fields; ?></textarea>
 			<br />
-			<small>Additional fields for the contact form. Allowed characters are letters, numbers and underscore. Underscores will be automatically replaced with a space when displaying the field label. Seperate each field with a semicolon.</small> <!--Field type (for form validation) is being set by adding a simple double-colon after the field, eg. <code>post code:numbers</code>. Known field types are: <strong>numbers</strong>, <strong>text</strong> (default field type, may be left out)-->
+			<small>Additional fields for the contact form. Allowed characters are letters, numbers and underscore. Underscores will be automatically replaced with a space, and first letter of each word will also be automatically uppercased when generating the field label. If you want to add your own labels, just use the syntax <code>label:field_name</code>, eg. <code>Your phone number:phone_number</code>. Seperate each field with a semicolon.</small> <!--Field type (for form validation) is being set by adding a simple double-colon after the field, eg. <code>post code:numbers</code>. Known field types are: <strong>numbers</strong>, <strong>text</strong> (default field type, may be left out)-->
 		</p>
 
 		<p>

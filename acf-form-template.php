@@ -4,7 +4,7 @@
  */
 
 ?>
-	<form id="alpha-form-<?php echo $template->id; ?>" action="<?php echo $template->form_url(); ?>" method="post" class="alpha-contact-form">
+	<form id="alpha-form-<?php echo $template->id; ?>" action="<?php echo $template->form_url; ?>" method="post" class="alpha-contact-form">
 		<p>
 			<label>
 				<span>Name</span>
