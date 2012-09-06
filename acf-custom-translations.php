@@ -1,7 +1,7 @@
 <?php
 /** 
  * Alpha Contact Form Widget - Custom Translation data
- * If needed can be replaced with your own in the directory of the current them (has to be of the same file name)
+ * If needed can be replaced with your own in the directory of the currently active theme (has to be of the same file name)
  */
  
 $arrCustomTranslations = array(
