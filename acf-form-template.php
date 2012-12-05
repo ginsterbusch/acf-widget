@@ -1,6 +1,9 @@
 <?php
 /**
  * Re-usable contact form
+ * 
+ * @version 0.2
+ * + added actions hooks
  */
 
 ?>
@@ -19,7 +22,10 @@
 			</label>
 		</p>
 
-		<?php
+	<?php
+	// hook before output of custom form fields
+	do_action('acf_widget_form_before_custom_fields');
+	
 	if(isset($template->custom_fields) != false) { 
 		foreach($template->custom_fields as $strCustomField) { ?>
 		<p>
@@ -30,8 +36,13 @@
 		</p>
 
 	<?php }
-	} ?>
-
+	} 
+	
+	// hook after output of custom form fields
+	do_action('acf_widget_form_after_custom_fields');
+	
+	?>
+	
 		<p>
 			<label class="required-field">
 				<span>Message</span>
@@ -40,10 +51,25 @@
 			</label>
 		</p>
 
+		<?php // hook after the message field - eg. to insert a CAPTCHA section
+		do_action('acf_widget_form_after_message_field'); ?>
+
+		<?php // hook for hidden fields
+		do_action('acf_worm_form_before_hidden_fields'); ?>
 
 		<input type="hidden" name="id" class="alpha-form-widget-id" id="<?php echo $this->id; ?>" value="<?php echo $this->id; ?>" />
 
-		<p class="form-controls"><button type="submit" class="alpha-button-submit">Absenden</button></p>
+		<?php // hook for hidden fields
+		do_action('acf_worm_form_after_hidden_fields'); ?>
+		
+		
+		<?php // hook before form controls
+		do_action('acf_worm_form_before_form_controls'); ?>
+
+		<p class="form-controls"><button type="submit" class="alpha-button-submit">Submit</button></p>
+		
+		<?php // hook AFTER form controls
+		do_action('acf_worm_form_after_form_controls'); ?>
 	</form>
 
 	<style type="text/css">

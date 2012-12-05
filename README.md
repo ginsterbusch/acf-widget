@@ -5,7 +5,10 @@ ACF Widget for WordPress. Simple and clean, easily customizable contact form wid
 
 Basically a plugin for both developers and advanced users, while still being fairly simple and easy to use, also for normal users.
 
-Future plans:
-- Filter and Action hooks for adding CAPTCHA, Math Question and similar anti-spam solutions
-- Improve form validation (maybe use the WordPress'ish in-house jQuery Form plugins)
+Work-in-progress:
 - Improve custom fields implementation
+- Filter and Action hooks for adding CAPTCHA, Math Question and similar anti-spam solutions
+
+Future plans:
+- Improve form validation (maybe use the WordPress'ish in-house jQuery Form plugins)
+- Implement framework-free, pure JS form validation and compatiblity with several frameworks (eg. jQuery or Zepto) and loaders / feature detectors (eg. HeadJS)

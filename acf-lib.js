@@ -1,8 +1,9 @@
 /**
  * Javascript library for Alpha Contact Form Widget
  * 
- * @requires jQuery
  */
+
+
 
 jQuery(function() {
 	// unobtrusive javascript additions to the form
@@ -87,4 +88,5 @@ jQuery(function() {
 			console.log( response );
 		}
 	)*/
-});
+} );
+
