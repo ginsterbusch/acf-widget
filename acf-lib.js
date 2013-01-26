@@ -1,9 +1,16 @@
+ 
+/**
+ * Dummy onsole
+ * @see https://github.com/andyet/ConsoleDummy.js
+ */
+(function(b){function c(){}for(var d="assert,count,debug,dir,dirxml,error,exception,group,groupCollapsed,groupEnd,info,log,markTimeline,profile,profileEnd,time,timeEnd,trace,warn".split(","),a;a=d.pop();)b[a]=b[a]||c})(window.console=window.console||{});
+
+
 /**
  * Javascript library for Alpha Contact Form Widget
  * 
+ * @requires jQuery
  */
-
-
 
 jQuery(function() {
 	// unobtrusive javascript additions to the form
@@ -46,15 +53,34 @@ jQuery(function() {
 				console.log( result )
 				
 				if(result.missing) {
+					// remove contact message
+					jQuery('#' + widgetID + ' .alpha-contact-message').filter(':visible').fadeOut();
+					
 					// parse missing fields
 					jQuery.each( result.missing, function(fieldName, errMessage) {
 						jQuery( '#' + widgetID + ' .alpha-field-' + fieldName).addClass('missing')
-						jQuery( '#' + widgetID + ' .alpha-validation-message.alpha-field-' + fieldName).html(errMessage)
+						jQuery( '#' + widgetID + ' .alpha-validation-message.alpha-field-' + fieldName).html(errMessage).show()
 						
 						//console.log( '#' + widgetID + ' .alpha-field-' + fieldName )
 					})
+				} else if(result.error == true) {
+					// set error message
+					
+					jQuery('#' + widgetID + ' .alpha-contact-message').html(result.message).removeClass('sending-success').addClass('sending-error').fadeIn();
+					
 				} else if(result.success == true) {
-					jQuery('#' + widgetID + ' .alpha-form-message').html(result.message)
+					//console.log('successfully sent the message!');
+					// remove error messages
+					jQuery('#' + widgetID + ' input[type=text], #' + widgetID + ' textarea').removeClass('missing')
+					jQuery('#' + widgetID + ' .alpha-validation-message').hide()
+					
+					// set success message
+					jQuery('#' + widgetID + ' .alpha-contact-message').html(result.message).removeClass('sending-error').addClass('sending-success').fadeIn();
+					
+					// set timeout for success message if applicable
+					if(typeof acf_ajax.message_timeout != 'undefined' && acf_ajax.message_timeout > 0) {
+						window.setTimeout( function() { jQuery('#' + widgetID + ' .alpha-contact-message').fadeOut() }, acf_ajax.message_timeout );
+					}
 				}
 				
 			}
@@ -88,5 +114,4 @@ jQuery(function() {
 			console.log( response );
 		}
 	)*/
-} );
-
+});

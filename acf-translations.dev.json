@@ -1,0 +1,28 @@
+/** 
+ * Alpha Contact Form Widget - Custom Translation data (JSON format)
+ * Dump a customized copy of this into the currently active theme directoy to override the regular translations.
+ */
+
+
+{
+	"default":{
+		"ajax_error_generic":"AJAX communication error - contact form settings not found.",
+		"ajax_error_missing_id":"AJAX communication error - wrong ID supplied.",
+		"missing_field_message":"Message area is not being filled out or contains invalid data. Note: HTML data is not allowed.",
+		"missing_field_email":"Sender e-mail address is not being or just incorrectly filled out.",
+		"missing_field_from":"Sender name is not being or just incorrectly filled out.",
+		"sending_error":"Error occured while trying to send your message.",
+		"generic_error":"Unknown error occured.",
+		"sending_success":"Message sent successfully"
+	},
+	"de":{
+		"ajax_error_generic":"Kommunikationsfehler: Konnte Einstellungen nicht finden.",
+		"ajax_error_missing_id":"Kommunikationsfehler: Falsche Formular-ID.",
+		"missing_field_message":"Keine Mitteilung oder fehlerhafte Zeichen eingegeben. Hinweis: HTML ist nicht erlaubt.",
+		"missing_field_from":"Absendername ist nicht oder unvollständig angegeben.",
+		"missing_field_email":"Die Absender-E-Mail-Adresse ist nicht oder einfach nur falsch angegeben.",
+		"sending_error":"Fehler: Ihre Mitteilung konnte aus unbekannten Gr\u00fcnden leider nicht versendet werden.",
+		"generic_error":"Unbekannter Fehler aufgetreten.",
+		"sending_success":"Ihre Mitteilung wurde erfolgreich abgesendet."
+	}
+}

@@ -1,27 +1,30 @@
 <?php
 /*
 Plugin Name: Alpha Contact Form Widget
-Plugin URI: http://usability-idealist.de/
+Plugin URI: https://github.com/ginsterbusch/acf-widget/
 Description: Contact form widget with AJAX support, some simple anti-spam protection and custom translation options. Inspired by Easy Speak Widget Contact Form by <a href="http://www.luke-roberts.info">Luke Roberts</a>.
-Version: 1.7
+Version: 1.8.3
 Author: Fabian Wolf
-Changelog: 
+Author URI: http://usability-idealist.de/
+Changelog: https://github.com/ginsterbusch/acf-widget/commits/master
 */
+
+
 
 class alphaContactForm {
 	var $pluginName = 'Alpha Contact Form',
 		$pluginPrefix = 'alpha_contact_form_',
-		$pluginVersion = 1.6,
+		$pluginVersion = '1.8.3',
 		$pluginSettings = array(
 			'enable_custom_translations' => false,
 		);
 	
-	function __construct() {
+	function __construct( $arrParams = array() ) {
 		// get settings
-		$maybeSettings = get_option( $this->pluginPrefix . 'settings', null); // single call for caching fun
-		if( $maybeSettings != null) {
-			$this->pluginSettings = $maybeSettings;
-		}
+		$maybeSettings = get_option( $this->pluginPrefix . 'settings', null ); // single call for caching fun
+		
+		$this->pluginSettings = ( $maybeSettings != null ? $maybeSettings : $this->get_default_settings() );
+		
 		
 		// add actions
 		
@@ -44,9 +47,102 @@ class alphaContactForm {
 		}
 		
 		// get custom translations (if enabled AND set)
-		if($this->pluginSettings['enable_custom_translatations'] == true) {
-			$this->arrCustomTranslations = get_option( $this->pluginPrefix . 'custom_translations', array() );
+		//if($this->pluginSettings['enable_custom_translatations'] == true) {
+			
+		$this->arrCustomTranslations = $this->get_custom_translations();
+			
+			/*get_option( $this->pluginPrefix . 'translations', array() );*/
+		//}
+	}
+
+
+	/**
+	 * Gets supplied in the admin page
+	 */
+	
+	public function get_default_settings( $strSection = 'settings', $defaultValue = false ) {
+		$return = $defaultValue;
+		
+		switch( $strSection ) {
+			case 'settings':
+				$return = array(
+					'thanks_message' => '',
+					'thanks_message_timeout' => 10000, /* in ms */
+				);
+			
+				break;
+			case 'custom_translations':
+				$return = $this->get_custom_translations_file();
+				break;
 		}
+		
+		return $return;
+	}
+
+	
+	public function get_custom_translations() {
+		$return = array();
+		
+		$arrDefaultTranslations = $this->get_custom_translations_file();
+		$arrTranslations = get_option($this->pluginPrefix .'translations', false);
+		
+		$return = ( !empty( $arrTranslations ) ? $arrTranslations : $arrDefaultTranslations );
+		
+		return $return;
+	}
+
+	
+	public function get_custom_translations_file( $strSection = null ) {
+		$return = false;
+		
+		$strCustomTransFile = 'acf-translations.json';
+		$strTransFilePath = plugin_dir_path(__FILE__) . $strCustomTransFile;
+	
+		/**
+		 * Note: use get_stylesheet_directory instead template_directory to avoid using the wrong theme. in case of a child theme, theme_directory will return the PARENT theme, whilest stylesheet_directory will return always return the currently active theme, which would in this case be the CHILD theme.
+		 */
+		
+		if( file_exists( get_stylesheet_directory() . '/' . $strCustomTransFile ) != false && filesize( get_stylesheet_directory() . '/' . $strCustomTransFile ) > 50 ) {
+			$strTransFilePath = get_stylesheet_directory() . '/'.  $strCustomTransFile;
+			//echo '<h1>using override ..</h1>';
+		}
+		
+		
+		$strData = file_get_contents( $strTransFilePath );
+	
+		//print_r($strData);
+	
+		// strip out comments, line breaks and other useless stuff that might make json_decode angry
+
+		
+		$result = json_decode( $strData );
+		
+		// if decoded successfully, convert to array
+		if( !empty( $result ) ) {
+			//echo '<pre>'.print_r($result, true).'</pre>';
+			
+			$arrReturn = object_to_array( $result );
+			
+			//echo '<pre>'.print_r($arrReturn, true).'</pre>'; 
+			
+			if( !empty( $strSection) ) {
+				$arrKeys = array_keys( $arrReturn );
+				
+				if( in_array( $strSection, $arrKeys ) != false) {
+					$return = $arrReturn[ $strSection ];
+				} elseif( sizeof( $arrKeys ) == 1 ) { // if there is just one section defined, this will be the default one
+					
+					$return = $arrReturn[$arrKeys[0]];
+				}
+			} else {
+				$return = $arrReturn;
+			}
+
+		}
+		
+		
+		
+		return $return;
 	}
 	
 	public function init_widget() {
@@ -63,7 +159,16 @@ class alphaContactForm {
 		//wp_enqueue_script( 'my-ajax-request', plugin_dir_url( __FILE__ ) . 'js/ajax.js', array( 'jquery' ) );
  
 		// declare the URL to the file that handles the AJAX request (wp-admin/admin-ajax.php)
-		wp_localize_script( $this->pluginPrefix . 'lib', 'acf_ajax', array( 'ajaxurl' => admin_url( 'admin-ajax.php' ) ) );
+		$arrJSCom = array( 
+			'ajaxurl' => admin_url( 'admin-ajax.php' ),
+		);
+		
+		// also add interesting settings like the thanks message timeout and stuff .. :P
+		if( !empty($this->pluginSettings['thanks_message_timeout']) ) {
+			$arrJSCom['message_timeout'] = $this->pluginSettings['thanks_message_timeout'];
+		}
+		
+		wp_localize_script( $this->pluginPrefix . 'lib', 'acf_ajax', $arrJSCom);
 	}
 	
 	// parses the AJAX submitted form data
@@ -109,8 +214,8 @@ class alphaContactForm {
 				if( !empty($_POST['from']) && filter_var( $_POST['from'], FILTER_VALIDATE_EMAIL ) != false) {
 					$strFrom = filter_var( $_POST['from'], FILTER_SANITIZE_EMAIL );
 				} else {
-					$return['missing']['from'] = 'Sender e-mail address is not being or just incorrectly filled out.';
-					$return['message'] = 'Sender e-mail address is not being or just incorrectly filled out.';
+					$return['missing']['from'] = $this->translate( 'Sender e-mail address is not being or just incorrectly filled out.', 'missing_field_email' );
+					$return['message'] = $this->translate( 'Sender e-mail address is not being or just incorrectly filled out.', 'missing_field_email' );
 				}
 				
 				// message => alphanumeric chars, no html
@@ -118,7 +223,7 @@ class alphaContactForm {
 					$strMessage = wp_kses( $_POST['message'], array() );
 				} else {
 					$return['missing']['message'] = $this->translate( 'Message area is not being filled out or contains invalid data. Note: HTML data is not allowed.', 'missing_field_message');
-					$return['message'] = ( sizeof($return['missing']) > 1 ? $return['message'] . '<br />' : '') . 'Message area is not being filled out or contains invalid data. Note: HTML data is not allowed.';
+					$return['message'] = ( sizeof($return['missing']) > 1 ? $return['message'] . '<br />' : '') . $this->translate( 'Message area is not being filled out or contains invalid data. Note: HTML data is not allowed.', 'missing_field_message');;
 				}
 				
 				// optional fields: name
@@ -152,12 +257,12 @@ class alphaContactForm {
 					}
 					
 					$arrAddHeader[] = 'From: ' . $strFrom;
-					$arrAddHeader[] = 'Mailer: ' . $this->pluginName . '/' . $this->pluginVersion;
+					$arrAddHeader[] = 'X-Mailer: ' . $this->pluginName . '/' . $this->pluginVersion;
 					
-					$strSubject = str_replace( array('%blog_name%', '%sender%'), array( get_bloginfo('name'), (isset($strFromName) != false ? $strFromName : $strFrom) ), $arrWidgetData['subject'] );
+					$strSubject = str_replace( array('%blog_title%','%blog_name%', '%sender%'), array( '%blog_name%', get_bloginfo('name'), (isset($strFromName) != false ? $strFromName : $strFrom) ), $arrWidgetData['subject'] );
 				
 					// regular custom fields
-					$arrAdditionalData['IP'] = $_SERVER['HTTP_REMOTE_HOST'];
+					$arrAdditionalData['IP'] = $_SERVER['REMOTE_ADDR'];
 					$arrAdditionalData['Referrer URL'] = $_SERVER['HTTP_REFERER'];
 					$arrAdditionalData['Date and time'] = date('Y-m-d H:i:s');
 					
@@ -175,6 +280,7 @@ class alphaContactForm {
 					if($result != false) {
 						$return['message'] = ( !empty($this->pluginSettings['thanks_message']) ? $this->pluginSettings['thanks_message'] : $this->translate('Message sent successfully', 'sending_success') );
 						
+						
 						$return['success'] = true;
 						
 						unset($return['error']);
@@ -189,7 +295,7 @@ class alphaContactForm {
 			}
 		} else { // widget id not found or wrong
 			$return['missing']['id'] = $this->translate('AJAX communication error - wrong ID supplied.', 'ajax_error_missing_id');
-			$return['message'] = 'AJAX communication error - wrong ID supplied.';
+			$return['message'] = $this->translate('AJAX communication error - wrong ID supplied.', 'ajax_error_missing_id');
 			$return['debug']['POST data'] = $_POST; // NO array( ...) because this array is already defined! (see widget_id processing!)
 			$return['debug']['GET data'] = $_GET;
 			$return['debug']['widget_id'] = $widget_id;
@@ -246,11 +352,18 @@ class alphaContactForm {
 		return $return;
 	}
 	
+	/**
+	 * Simple translation using either string-based or key-based translations - if available. 
+	 * 
+	 * @param string $text						Text to translate if possible. 
+	 * @param [optional]string $associated_key	Use key-based (association) translation instead. 
+	 */
 	
-	private function translate( $strText, $strAssoc = null ) {
+	protected function translate( $strText = '', $strAlloKey = null ) {
 		$return = $strText;
-		if(!empty($strAssoc) && isset($this->arrCustomTranslations) != false && array_key_exists( $strAssoc, $this->arrCustomTranslations) != false ) {
-			$return = $this->arrCustomTranslations[ $strAssoc ];
+		
+		if(!empty($strAlloKey) && isset($this->arrCustomTranslations) != false && array_key_exists( $strAlloKey, $this->arrCustomTranslations) != false ) {
+			$return = $this->arrCustomTranslations[ $strAlloKey ];
 		}
 		
 		return $return;
@@ -264,8 +377,9 @@ $_acf = new alphaContactForm();
  */
  
 if(is_admin() ) {
+	//require_once( plugin_dir_path(__FILE__) . '/messagehandler.class.php' );
 	require_once( plugin_dir_path(__FILE__) . '/acf-admin.class.php' );
-	$_acf_admnin = new AlphaContactFormAdmin();
+	$_acf_admin = new alphaContactFormAdmin();
 }
 
 
@@ -387,7 +501,7 @@ class alphaContactFormWidget extends WP_Widget {
 	function form( $instance ) {
 		$title = isset( $instance['title'] ) ? $instance['title'] : '';
 		$recipient = (!empty($instance['recipient']) ? $instance['recipient'] : get_option('admin_email', '') );
-		$subject = (!empty($instance['subject']) ? $instance['subject'] : '[%blog_title: Contact request]' );
+		$subject = (!empty($instance['subject']) ? $instance['subject'] : '[%blog_title%: Contact request]' );
 		$send_cc = $instance['send_cc'];
 		
 		
@@ -436,3 +550,41 @@ class alphaContactFormWidget extends WP_Widget {
 	}
 }
 
+
+/**
+ * Little helpful function library
+ */
+ 
+function strip_whitespace( $text ) {
+	$return = $text;
+	
+	// strip whitespace
+	$return = str_replace( array("\r\n", "\n", "\t"), '', $return );
+	
+	return $return;
+}
+
+/**
+ * @see http://www.if-not-true-then-false.com/2009/php-tip-convert-stdclass-object-to-multidimensional-array-and-convert-multidimensional-array-to-stdclass-object/
+ */
+
+function object_to_array($d) {
+	if (is_object($d)) {
+		// Gets the properties of the given object
+		// with get_object_vars function
+		$d = get_object_vars($d);
+	}
+
+	if (is_array($d)) {
+		/*
+		* Return array converted to object
+		* Using __FUNCTION__ (Magic constant)
+		* for recursive call
+		*/
+		return array_map(__FUNCTION__, $d);
+	}
+	else {
+		// Return array
+		return $d;
+	}
+}
