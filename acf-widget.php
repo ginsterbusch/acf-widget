@@ -3,7 +3,7 @@
 Plugin Name: Alpha Contact Form Widget
 Plugin URI: https://github.com/ginsterbusch/acf-widget/
 Description: Contact form widget with AJAX support, some simple anti-spam protection and custom translation options. Inspired by Easy Speak Widget Contact Form by <a href="http://www.luke-roberts.info">Luke Roberts</a>.
-Version: 1.8.3
+Version: 1.8.5
 Author: Fabian Wolf
 Author URI: http://usability-idealist.de/
 Changelog: https://github.com/ginsterbusch/acf-widget/commits/master
@@ -14,16 +14,19 @@ Changelog: https://github.com/ginsterbusch/acf-widget/commits/master
 class alphaContactForm {
 	var $pluginName = 'Alpha Contact Form',
 		$pluginPrefix = 'alpha_contact_form_',
-		$pluginVersion = '1.8.3',
+		$pluginVersion = '1.8.5',
 		$pluginSettings = array(
 			'enable_custom_translations' => false,
 		);
 	
 	function __construct( $arrParams = array() ) {
 		// get settings
-		$maybeSettings = get_option( $this->pluginPrefix . 'settings', null ); // single call for caching fun
+		//$maybeSettings = get_option( $this->pluginPrefix . 'settings', null ); // single call for caching fun
 		
-		$this->pluginSettings = ( $maybeSettings != null ? $maybeSettings : $this->get_default_settings() );
+		// join default AND custom settings
+		$this->pluginSettings = $this->get_settings();
+		
+		//$this->pluginSettings = ( $maybeSettings != null ? $maybeSettings : $this->get_default_settings() );
 		
 		
 		// add actions
@@ -56,6 +59,42 @@ class alphaContactForm {
 	}
 
 
+	public function get_settings( $strSection = 'settings' ) {
+		$return = array();
+		
+		switch( $strSection ) {
+			case 'settings':
+			default:
+				$maybeSettings = get_option( $this->pluginPrefix . $strSection, null );
+				$defaultSettings = $this->get_default_settings();
+				break;
+			case 'custom_translations':
+			case 'translations':
+				$maybeSettings = $this->get_custom_translations();
+				$defaultSettings = $this->get_custom_translations_file();
+				break;
+		}
+		
+		/**
+		 * The main functionality is always the same 
+		 * isset( $string ) => if $string == NULL return false; else return true 
+		 * @see http://php.net/isset
+		 * 
+		 * so .. 0 is also a VALID value.
+		 */
+		
+		if( $maybeSettings != null ) { // there are some custom settings
+			foreach( $defaultSettings as $strSetting => $defaultValue ) {
+				$return[$strSetting] = ( isset($maybeSettings[$strSetting]) ? $maybeSettings[$strSetting] : $defaultValue );
+			}
+		} else { // no settings found
+			$return = $defaultSettings;
+		}
+		
+		
+		return $return;
+	}
+
 	/**
 	 * Gets supplied in the admin page
 	 */
@@ -68,6 +107,7 @@ class alphaContactForm {
 				$return = array(
 					'thanks_message' => '',
 					'thanks_message_timeout' => 10000, /* in ms */
+					'mail_method' => 'php', /* available methods: php, wp */
 				);
 			
 				break;
@@ -257,14 +297,21 @@ class alphaContactForm {
 					}
 					
 					$arrAddHeader[] = 'From: ' . $strFrom;
-					$arrAddHeader[] = 'X-Mailer: ' . $this->pluginName . '/' . $this->pluginVersion;
+					$arrAddHeader[] = 'X-Mailer: ' . $this->pluginName . '/' . $this->pluginVersion . ' (https://github.com/ginsterbusch/acf-widget/)';
+					
+					
 					
 					$strSubject = str_replace( array('%blog_title%','%blog_name%', '%sender%'), array( '%blog_name%', get_bloginfo('name'), (isset($strFromName) != false ? $strFromName : $strFrom) ), $arrWidgetData['subject'] );
 				
 					// regular custom fields
 					$arrAdditionalData['IP'] = $_SERVER['REMOTE_ADDR'];
 					$arrAdditionalData['Referrer URL'] = $_SERVER['HTTP_REFERER'];
-					$arrAdditionalData['Date and time'] = date('Y-m-d H:i:s');
+					
+					/**
+					 * NOTE: Proper locale-aware date and time
+					 */
+					$arrAdditionalData['Date and time'] = date('Y-m-d H:i:s', current_time('timestamp') );
+					//$arrAdditionalData['Date and time'] = date('Y-m-d H:i:s');
 					
 					// compile custom fields to the message
 					foreach($arrAdditionalData as $strFieldName => $strFieldValue) {
@@ -274,8 +321,23 @@ class alphaContactForm {
 					
 					$strMessage = $strMessage . "\n" . $strDivider . "\n\n" . $strAdditionalData . "\n\n" . $strDivider . "\n\n";
 				
+					// add correct encoding + mime info to the mail header
+					/**
+					 * @see http://www.php.net/manual/en/language.operators.array.php
+					 */
+					/*
+					$arrAddHeader = $arrAddHeader + array(
+						'MIME-Version: 1.0',
+						'Content-Transfer-Encoding: 8bit',
+						'Content-Type: text/plain; charset="' . get_bloginfo('charset') .'"',
+					);*/ // do NOT override any possibly set mime + encoding info
 					
-					$result = mail( $strRecipient, $strSubject, $strMessage, implode("\n", $arrAddHeader) );
+					/**
+					 * NOTE: Looks like using wp_mail solves the i18n character problems automagically ;)
+					 */
+					
+					$result = $this->send_mail_wp( $strRecipient, $strSubject, $strMessage, $arrAddHeader );
+					
 					
 					if($result != false) {
 						$return['message'] = ( !empty($this->pluginSettings['thanks_message']) ? $this->pluginSettings['thanks_message'] : $this->translate('Message sent successfully', 'sending_success') );
@@ -283,6 +345,18 @@ class alphaContactForm {
 						
 						$return['success'] = true;
 						
+						// avoid security issues
+						
+						if(is_user_logged_in() != false ) {
+							
+							$return['debug'] = array(
+								'recipient' => $strRecipient,
+								'subject' => $strSubject,
+								'message' => $strMessage,
+								'headers' => $arrAddHeader,
+							); 
+
+						}
 						unset($return['error']);
 					} else {
 						$return['message'] = $this->translate('Error occured while trying to send your message.', 'sending_error');
@@ -296,10 +370,16 @@ class alphaContactForm {
 		} else { // widget id not found or wrong
 			$return['missing']['id'] = $this->translate('AJAX communication error - wrong ID supplied.', 'ajax_error_missing_id');
 			$return['message'] = $this->translate('AJAX communication error - wrong ID supplied.', 'ajax_error_missing_id');
-			$return['debug']['POST data'] = $_POST; // NO array( ...) because this array is already defined! (see widget_id processing!)
-			$return['debug']['GET data'] = $_GET;
-			$return['debug']['widget_id'] = $widget_id;
-			$return['debug']['POST[id]'] = $_POST['id'];
+			
+			// avoid security issues, eg. XSS
+			
+			if( is_user_logged_in() != false ) {
+			
+				$return['debug']['POST data'] = $_POST; // NO array( ...) because this array is already defined! (see widget_id processing!)
+				$return['debug']['GET data'] = $_GET;
+				$return['debug']['widget_id'] = $widget_id;
+				$return['debug']['POST[id]'] = $_POST['id'];
+			}
 		}
 		
 		
@@ -341,6 +421,67 @@ class alphaContactForm {
 		exit( $return );
 		
 	}
+	
+	/**
+	 * Wrapper for _send_mail( 'php', ... )
+	 */
+	public function send_mail_wp( $strRecipient, $strSubject = '[no subject]', $strMessage = '', $arrMailHeader = array(), $arrMailAttachments = array() ) {
+		$return = $this->_send_mail('wp', $strRecipient, $strSubject, $strMessage, $arrMailHeader, $arrMailAttachments );
+	
+		return $return;
+	}
+	
+	public function send_mail( $strRecipient, $strSubject = '[no subject]', $strMessage = '', $arrMailHeader = array(), $arrMailAttachments = array() ) {
+		$return = $this->_send_mail('php', $strRecipient, $strSubject, $strMessage, $arrMailHeader, $arrMailAttachments );
+		
+		return $return;
+	}
+	
+	
+	/**
+	 * Internal wrapper for sending mail with different mailers
+	 * 
+	 * @since 1.8.4
+	 */
+	
+	protected function _send_mail( $strMethod = 'php', $strRecipient, $strSubject = '[no subject]', $strMessage = '', $arrMailHeader = array(), $arrMailAttachments = array() ) {
+		$return = false;
+		
+		$strMethod = ( isset($this->pluginSettings['mailer']) != false ) ? $this->pluginSettings['mail_method'] : ( !empty($strMethod) ? $strMethod : 'php' );
+
+		// check if headers are set
+		if( empty( $arrMailHeader) != false) {
+			$arrMailHeader = array('X-Mailer: PHP/' . phpversion() );
+		}
+		
+		
+
+		// which mail sending method to use
+		switch( $strMethod ) {
+			default:
+			case 'php':
+				// prepare mail header
+				$strHeader = ( sizeof($arrMailHeader) > 1 ? implode("\r\n", $arrMailHeader) : $arrMailHeader[0] );
+			
+				$return = mail( $strRecipient, $strSubject, $strMessage, $strHeader );
+				break;
+		
+			case 'wp':
+				/**
+				 * wp_mail does a bit of the work for as already, eg. automatically converting header lines to the right format, use the local server encoding and so on
+				 * @see http://codex.wordpress.org/Function_Reference/wp_mail#Using_.24headers_To_Set_.22From:.22.2C_.22Cc:.22_and_.22Bcc:.22_Parameters
+				 */
+				
+				
+				$return = wp_mail( $strRecipient, $strSubject, $strMessage, $arrMailHeader, $arrMailAttachments );
+				break;
+		}
+		
+		return $return;
+	}
+		
+	
+	
 	
 	public function is_ajax_call() {
 		$return = true;
@@ -554,6 +695,23 @@ class alphaContactFormWidget extends WP_Widget {
 /**
  * Little helpful function library
  */
+
+
+function _debug( $data, $strTitle = false, $useComments = false ) {
+	$return = print_r( $data, true );
+	
+	$strBefore = '<div class="debug"><p class="debug-title"><strong>%s</strong></p><pre class="debug-data">';
+	$strAfter = '</pre></div>';
+	
+	
+	if( $useComments != false ) {
+		$strBefore = "\n". '<!-- %s'; $strAfter = '-->' . "\n";
+	}
+	
+	$return =  "\n\n" . sprintf( $strBefore, $strTitle ) . $return . $strAfter . "\n";
+	
+	echo $return;
+}
  
 function strip_whitespace( $text ) {
 	$return = $text;
