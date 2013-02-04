@@ -2,13 +2,12 @@
 /*
 Plugin Name: Alpha Contact Form Widget
 Plugin URI: https://github.com/ginsterbusch/acf-widget/
-Description: Contact form widget with AJAX support, some simple anti-spam protection and custom translation options. Inspired by Easy Speak Widget Contact Form by <a href="http://www.luke-roberts.info">Luke Roberts</a>.
+Description: Contact form widget with unobtrusive AJAX support and custom translation options. Somewhat inspired by Easy Speak Widget Contact Form by <a href="http://www.luke-roberts.info">Luke Roberts</a>.
 Version: 1.8.5
 Author: Fabian Wolf
 Author URI: http://usability-idealist.de/
 Changelog: https://github.com/ginsterbusch/acf-widget/commits/master
 */
-
 
 
 class alphaContactForm {
